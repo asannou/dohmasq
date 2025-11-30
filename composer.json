@@ -1,0 +1,17 @@
+{
+    "name": "asannou/dohmasq",
+    "authors": [
+        {
+            "name": "asannou",
+            "email": "hataori@gmail.com"
+        }
+    ],
+    "require-dev": {
+        "phpunit/phpunit": "^12.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "Asannou\\DohMasq\\": "src/"
+        }
+    }
+}
