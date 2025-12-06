@@ -24,7 +24,7 @@ $doc->appendChild($plist);
 $rootDict = $doc->createElement('dict');
 $plist->appendChild($rootDict);
 
-function addKeyValuePair(DOMDocument $doc, DOMElement $dict, string $key, string $type, string|int|bool $value): void
+function addKeyValuePair(DOMDocument $doc, DOMElement $dict, string $key, string $type, string|int|bool $value = null): void
 {
     $keyElement = $doc->createElement('key', htmlspecialchars($key));
     $dict->appendChild($keyElement);
@@ -47,9 +47,9 @@ $payloadContentArray->appendChild($dnsPayloadDict);
 
 addKeyValuePair($doc, $dnsPayloadDict, 'PayloadDescription', 'string', 'DNS Settings');
 addKeyValuePair($doc, $dnsPayloadDict, 'PayloadDisplayName', 'string', 'Dohmasq');
-addKeyValuePair($doc, $dnsPayloadDict, 'PayloadIdentifier', 'string', 'com.apple.dnsSettings.managed.' . $dns_payload_uuid);
+addKeyValuePair($doc, $dnsPayloadDict, 'PayloadIdentifier', 'string', "com.apple.dnsSettings.managed.$dns_payload_uuid");
 addKeyValuePair($doc, $dnsPayloadDict, 'PayloadType', 'string', 'com.apple.dnsSettings.managed');
-addKeyValuePair($doc, $dnsPayloadDict, 'PayloadUUID', 'string', 'com.apple.dnsSettings.managed');
+addKeyValuePair($doc, $dnsPayloadDict, 'PayloadUUID', 'string', $dns_payload_uuid);
 addKeyValuePair($doc, $dnsPayloadDict, 'PayloadVersion', 'integer', 1);
 
 $dnsPayloadDict->appendChild($doc->createElement('key', 'DNSSettings'));
@@ -58,11 +58,11 @@ $dnsPayloadDict->appendChild($dnsSettingsDict);
 
 addKeyValuePair($doc, $dnsSettingsDict, 'DNSProtocol', 'string', 'HTTPS');
 addKeyValuePair($doc, $dnsSettingsDict, 'ServerURL', 'string', $server_url);
-addKeyValuePair($doc, $dnsSettingsDict, 'ProhibitDisablement', 'false', false);
+addKeyValuePair($doc, $dnsSettingsDict, 'ProhibitDisablement', 'false');
 
 addKeyValuePair($doc, $rootDict, 'PayloadDisplayName', 'string', 'Dohmasq');
 addKeyValuePair($doc, $rootDict, 'PayloadIdentifier', 'string', 'com.apple.dnsSettings.managed');
-addKeyValuePair($doc, $rootDict, 'PayloadRemovalDisallowed', 'false', false);
+addKeyValuePair($doc, $rootDict, 'PayloadRemovalDisallowed', 'false');
 addKeyValuePair($doc, $rootDict, 'PayloadType', 'string', 'Configuration');
 addKeyValuePair($doc, $rootDict, 'PayloadUUID', 'string', $payload_uuid);
 addKeyValuePair($doc, $rootDict, 'PayloadVersion', 'integer', 1);
