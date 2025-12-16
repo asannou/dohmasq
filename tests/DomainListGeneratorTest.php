@@ -17,7 +17,10 @@ EOT;
 
     public function testParseHostsContent()
     {
-        $generator = new DomainListGenerator([], '');
+        $dummyStream = fopen('php://memory', 'r');
+        $generator = new DomainListGenerator([], $dummyStream);
+        fclose($dummyStream);
+
         $result = $generator->parseHostsContent($this->sampleHostsContent);
 
         $expected = [
@@ -34,7 +37,10 @@ EOT;
     public function testGeneratePhpFileContent()
     {
         $sourceUrls = ['http://example.com/hosts', 'http://example.org/hosts'];
-        $generator = new DomainListGenerator($sourceUrls, '/tmp/domains.php');
+        $dummyStream = fopen('php://memory', 'r');
+        $generator = new DomainListGenerator($sourceUrls, $dummyStream);
+        fclose($dummyStream);
+
         $domains = [
             'ad.example.com' => false,
             'local.dev' => '127.0.0.1',
@@ -44,24 +50,29 @@ EOT;
 
         $this->assertStringContainsString("'ad.example.com' => false", $content);
         $this->assertStringContainsString("'local.dev' => '127.0.0.1'", $content);
-        $this->assertStringContainsString('return array (', $content);
+        $this->assertStringContainsString("return array (\n", $content);
         $this->assertStringContainsString("// - http://example.com/hosts", $content);
         $this->assertStringContainsString("// - http://example.org/hosts", $content);
     }
 
     public function testGeneratedFileContentAfterInclude()
     {
-        $generator = new DomainListGenerator(['http://example.com/hosts'], '/tmp/test-domains-include.php');
+        $tempFile = tmpfile();
+        $generator = new DomainListGenerator(['http://example.com/hosts'], $tempFile);
         $domains = [
             'ad.example.com' => false,
             'local.dev' => '127.0.0.1',
         ];
 
         $content = $generator->generatePhpFileContent($domains);
-        file_put_contents('/tmp/test-domains-include.php', $content);
+        fwrite($tempFile, $content);
+        $meta_data = stream_get_meta_data($tempFile);
+        $filename = $meta_data["uri"];
 
         // Include the generated file and verify its content
-        $includedDomains = include '/tmp/test-domains-include.php';
+        $includedDomains = include $filename;
+
+        fclose($tempFile); // This deletes the file
 
         $expected = [
             'ad.example.com' => false,
@@ -69,21 +80,16 @@ EOT;
         ];
 
         $this->assertEquals($expected, $includedDomains);
-
-        // Clean up the generated file
-        if (file_exists('/tmp/test-domains-include.php')) {
-            unlink('/tmp/test-domains-include.php');
-        }
     }
 
     public function testGenerate()
     {
         $sourceUrls = ['http://example.com/hosts'];
-        $outputFile = '/tmp/test-domains.php';
+        $outputStream = tmpfile();
 
         // Create a mock for the DomainListGenerator class
         $mockGenerator = $this->getMockBuilder(DomainListGenerator::class)
-            ->setConstructorArgs([$sourceUrls, $outputFile])
+            ->setConstructorArgs([$sourceUrls, $outputStream])
             ->onlyMethods(['fetchSourceContent', 'saveOutputFile'])
             ->getMock();
 
@@ -98,9 +104,6 @@ EOT;
         $result = $mockGenerator->generate(false);
         $this->assertTrue($result);
 
-        // Clean up the generated file if it exists
-        if (file_exists($outputFile)) {
-            unlink($outputFile);
-        }
+        fclose($outputStream);
     }
 }

@@ -7,12 +7,12 @@ namespace Asannou\DohMasq;
 class DomainListGenerator
 {
     private array $sourceUrls;
-    private string $outputFile;
+    private $outputStream;
 
-    public function __construct(array $sourceUrls, string $outputFile)
+    public function __construct(array $sourceUrls, $outputStream)
     {
         $this->sourceUrls = $sourceUrls;
-        $this->outputFile = $outputFile;
+        $this->outputStream = $outputStream;
     }
 
     public function generate(bool $verbose = true): bool
@@ -58,20 +58,22 @@ class DomainListGenerator
         }
 
         $fileContent = $this->generatePhpFileContent($final_domain_map);
+        $meta_data = stream_get_meta_data($this->outputStream);
+        $outputFile = $meta_data["uri"];
 
         if ($verbose) {
-            echo "Generating $this->outputFile ...\n";
+            echo "Generating $outputFile ...\n";
         }
 
         if ($this->saveOutputFile($fileContent) === false) {
             if ($verbose) {
-                echo "Error: Failed to write to $this->outputFile. Check permissions.\n";
+                echo "Error: Failed to write to $outputFile. Check permissions.\n";
             }
             return false;
         }
 
         if ($verbose) {
-            echo "Successfully created $this->outputFile.\n";
+            echo "Successfully created $outputFile.\n";
         }
         return true;
     }
@@ -141,6 +143,6 @@ class DomainListGenerator
 
     public function saveOutputFile(string $content): bool
     {
-        return file_put_contents($this->outputFile, $content) !== false;
+        return fwrite($this->outputStream, $content) !== false;
     }
 }

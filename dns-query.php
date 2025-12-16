@@ -30,3 +30,20 @@ if ($token === null || !in_array($token, $allowedTokens, true)) {
 $proxy = new DohProxy($upstreamUrl, $domainMap, $token);
 $proxy->run();
 
+if (!getenv('DOH_DOMAINS_FILE') && isExpired($domainsFile)) {
+    $generateDomains = __DIR__ . '/generate-domains.php';
+    $command = "$generateDomains &";
+    exec($command);
+}
+
+function isExpired(string $domainsFile): bool
+{
+    $EXPIRE_SECONDS = 60 * 60 * 24;
+    $modifiedTime = filemtime($domainsFile);
+    if ($modifiedTime) {
+        return ($modifiedTime + $EXPIRE_SECONDS) < time();
+    } else {
+        return true;
+    }
+}
+
