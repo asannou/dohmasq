@@ -11,6 +11,7 @@ A lightweight, `Dnsmasq`-inspired DNS-over-HTTPS (DoH) proxy written in PHP.
 *   **Local DNS Resolution:** Resolve specific domains to local IP addresses, similar to a traditional `/etc/hosts` file.
 *   **Domain Blocking:** Block unwanted domains (e.g., ads, trackers) by using a `hosts`-formatted list. Domains pointing to `0.0.0.0` are automatically rejected with an `NXDOMAIN` response.
 *   **Upstream Forwarding:** Forwards any queries for domains not in the local list to a configurable upstream DoH server (defaults to Google DNS).
+*   **Automatic List Updates:** Automatically regenerates the domain list (e.g., daily) to keep it fresh.
 
 ## How It Works
 
@@ -18,14 +19,16 @@ Here is a diagram illustrating the architecture:
 
 ```mermaid
 graph LR
-    subgraph "One-time/Periodic Setup"
+    subgraph "Domain List Generation"
         direction LR
-        A[External `hosts` file URL] --"Fetched by"--> B(generate-domains.php);
+        A[External `hosts` file URLs] --"Fetched by"--> B(generate-domains.php);
         B --"Generates PHP array"--> C(domains.php);
     end
 
     subgraph "Runtime DoH Query Flow"
         D[DoH Client] --> E["Dohmasq (/{token}/dns-query.php)"];
+        E --"Checks expiry of"--> C;
+        E --"If expired, triggers in background"--> B;
         E --"Reads"--> C;
         E --> F{Domain Action?};
         F --"Blocked"--> G[Synthesize NXDOMAIN Response];
@@ -42,7 +45,9 @@ graph LR
 The project has two main parts:
 
 1.  **Domain List Generator (`generate-domains.php`):**
-    This is a command-line script that you run once (or periodically) to build your domain list. It fetches a `hosts`-formatted file from a specified URL, parses it, and creates a PHP array in `domains.php`.
+    This script builds your domain list. It fetches `hosts`-formatted files from multiple specified URLs, parses them, merges the results, and creates a PHP array in `domains.php`.
+    *   **Manual Execution:** You can run it manually from the command line.
+    *   **Automatic Regeneration:** `dns-query.php` can automatically trigger this script in the background if the `domains.php` file is considered expired (default: 24 hours old).
     *   Domains mapped to `0.0.0.0` are marked for blocking.
     *   Domains mapped to any other IP are stored for local resolution.
 
@@ -76,14 +81,21 @@ The project has two main parts:
 
 ### Configuration
 
-1.  **Generate the Domain List:**
-    *   Open `generate-domains.php` in a text editor.
-    *   Change the `$hostsUrl` variable to the URL of the `hosts` file you want to use.
-    *   Run the script from your terminal:
-        ```bash
-        php generate-domains.php
-        ```
-    *   This will create a `domains.php` file containing your rules.
+1.  **Generate and Update the Domain List:**
+    The domain list (`domains.php`) can be generated and updated in two ways:
+
+    *   **Manual Generation:**
+        *   Open `generate-domains.php` in a text editor.
+        *   Modify the `$sourceUrls` array to include all `hosts` file URLs you want to use.
+        *   Run the script from your terminal:
+            ```bash
+            php generate-domains.php
+            ```
+        *   This will create (or update) `domains.php` containing your rules.
+
+    *   **Automatic Regeneration:**
+        `dns-query.php` will automatically trigger `generate-domains.php` in the background if the `domains.php` file is older than 24 hours. This ensures your block list stays fresh.
+        *   **Expiration Interval:** You can adjust the expiration by modifying the `$EXPIRE_SECONDS` constant in `dns-query.php`.
 
 2.  **Configure Allowed Tokens:**
     *   Open `tokens.php` in a text editor.

@@ -6,11 +6,12 @@
 
 ## 特徴
 
-*   **DNS-over-HTTPSプロキシ:** 暗号化された DNS クエリを処理する DoH サーバーとして機能します。
-*   **ユーザー識別:** URL内のトークンによってユーザーを区別します (`https://your-domain.com/{token}/dns-query.php`)。
+*   **DNS-over-HTTPS プロキシ:** 暗号化された DNS クエリを処理する DoH サーバーとして機能します。
+*   **ユーザー識別:** URL 内のトークンによってユーザーを区別します (`https://your-domain.com/{token}/dns-query.php`)。
 *   **ローカル DNS 解決:** 従来の `/etc/hosts` ファイルのように、特定のドメインをローカル IP アドレスに解決します。
 *   **ドメインブロッキング:** `hosts` 形式のリストを使用して、不要なドメイン（広告、トラッカーなど）をブロックします。`0.0.0.0` を指すドメインは、`NXDOMAIN` 応答で自動的に拒否されます。
 *   **アップストリーム転送:** ローカルリストにないドメインへのクエリは、設定可能なアップストリームの DoH サーバー（デフォルトは Google DNS）に転送されます。
+*   **リストの自動更新:** ドメインリストを（例: 毎日）自動的に再生成し、最新の状態に保ちます。
 
 ## 仕組み
 
@@ -18,36 +19,40 @@
 
 ```mermaid
 graph LR
-    subgraph "One-time/Periodic Setup"
+    subgraph "ドメインリストの生成"
         direction LR
-        A[External `hosts` file URL] --"Fetched by"--> B(generate-domains.php);
-        B --"Generates PHP array"--> C(domains.php);
+        A[外部の `hosts` ファイル URL] --"フェッチ"--> B(generate-domains.php);
+        B --"PHP 配列を生成"--> C(domains.php);
     end
 
-    subgraph "Runtime DoH Query Flow"
-        D[DoH Client] --> E["Dohmasq (/{token}/dns-query.php)"];
-        E --"Reads"--> C;
-        E --> F{Domain Action?};
-        F --"Blocked"--> G[Synthesize NXDOMAIN Response];
-        F --"Local IP"--> H[Synthesize A-Record Response];
-        F --"Not Listed"--> I[Forward Query];
-        I --> J[Upstream DoH Server];
-        J --"Response"--> I;
-        G --"Response"--> D;
-        H --"Response"--> D;
-        I --"Relay Response"--> D;
+    subgraph "実行時の DoH クエリフロー"
+        D[DoH クライアント] --> E["Dohmasq (/{token}/dns-query.php)"];
+        E --"有効期限をチェック"--> C;
+        E --"期限切れの場合、バックグラウンドでトリガー"--> B;
+        E --"読み込み"--> C;
+        E --> F{ドメインの処理?};
+        F --"ブロック"--> G[NXDOMAIN 応答を合成];
+        F --"ローカル IP"--> H[A レコード応答を合成];
+        F --"リストにない"--> I[クエリを転送];
+        I --> J[アップストリームの DoH サーバー];
+        J --"応答"--> I;
+        G --"応答"--> D;
+        H --"応答"--> D;
+        I --"応答を中継"--> D;
     end
 ```
 
 このプロジェクトには主に2つの部分があります。
 
 1.  **ドメインリストジェネレーター (`generate-domains.php`):**
-    これは、ドメインリストを構築するために一度（または定期的に）実行するコマンドラインスクリプトです。指定された URL から `hosts` 形式のファイルをフェッチし、解析して、`domains.php` にPHP配列を作成します。
+    このスクリプトはドメインリストを構築します。複数の指定された URL から `hosts` 形式のファイルをフェッチし、解析、結果をマージして `domains.php` に PHP 配列を作成します。
+    *   **手動実行:** コマンドラインから手動で実行できます。
+    *   **自動再生成:** `domains.php` ファイルが期限切れ（デフォルト: 24 時間）の場合、`dns-query.php` がバックグラウンドでこのスクリプトを自動的にトリガーできます。
     *   `0.0.0.0` にマッピングされたドメインはブロック対象としてマークされます。
     *   その他の IP にマッピングされたドメインは、ローカル解決のために保存されます。
 
 2.  **DoH プロキシ (`dns-query.php`):**
-    これはウェブのエントリーポイントです。URLパスにユーザー固有のトークン (`/{token}/dns-query.php`) が必要です。DoH クエリを受信すると、`DohProxy` クラスは次のように動作します。
+    これはウェブのエントリーポイントです。URL パスにユーザー固有のトークン (`/{token}/dns-query.php`) が必要です。DoH クエリを受信すると、`DohProxy` クラスは次のように動作します。
     *   要求されたドメインが `domains.php` マップにあるかどうかを確認します。
     *   **ローカル解決の場合:** 指定された IP アドレスを持つ合成 `A` レコードを返します。
     *   **ブロック対象の場合:** `NXDOMAIN`（存在しないドメイン）応答を返します。
@@ -76,14 +81,21 @@ graph LR
 
 ### 設定
 
-1.  **ドメインリストの生成:**
-    *   テキストエディタで `generate-domains.php` を開きます。
-    *   使用したい `hosts` ファイルのURLに `$hostsUrl` 変数を変更します。
-    *   ターミナルからスクリプトを実行します。
-        ```bash
-        php generate-domains.php
-        ```
-    *   これにより、ルールを含む `domains.php` ファイルが作成されます。
+1.  **ドメインリストの生成と更新:**
+    ドメインリスト (`domains.php`) は2つの方法で生成・更新できます。
+
+    *   **手動生成:**
+        *   テキストエディタで `generate-domains.php` を開きます。
+        *   使用したいすべての `hosts` ファイルの URL を含むように `$sourceUrls` 配列を修正します。
+        *   ターミナルからスクリプトを実行します:
+            ```bash
+            php generate-domains.php
+            ```
+        *   これにより、ルールを含む `domains.php` が作成（または更新）されます。
+
+    *   **自動再生成:**
+        `domains.php` ファイルが 24 時間以上古い場合、`dns-query.php` がバックグラウンドで自動的に `generate-domains.php` をトリガーします。これにより、ブロックリストが最新の状態に保たれます。
+        *   **有効期限:** `dns-query.php` の `$EXPIRE_SECONDS` 定数を変更することで、有効期限を調整できます。
 
 2.  **許可されたトークンの設定:**
     *   テキストエディタで `tokens.php` を開きます。
