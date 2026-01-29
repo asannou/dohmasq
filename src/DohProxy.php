@@ -61,38 +61,60 @@ class DohProxy
         return null;
     }
 
-    private function parseDnsQueryDomain(string $dnsQueryBinary): ?string
+    private function parseDomainName(string $binary, int &$offset): ?string
     {
-        $offset = 12;
         $domain = '';
+        $tempOffset = $offset;
+        $jumped = false;
+        $firstJumpOffset = -1;
+        $jumps = 0;
 
-        if (strlen($dnsQueryBinary) <= 12) {
-            return null;
-        }
+        while (true) {
+            if ($tempOffset >= strlen($binary)) {
+                return null;
+            }
+            $length = ord($binary[$tempOffset]);
 
-        while ($offset < strlen($dnsQueryBinary)) {
-            $length = ord($dnsQueryBinary[$offset]);
+            if (($length & 0xC0) === 0xC0) {
+                if ($tempOffset + 1 >= strlen($binary)) {
+                    return null;
+                }
+                $pointer = unpack('n', substr($binary, $tempOffset, 2))[1] & 0x3FFF;
+                if (!$jumped) {
+                    $firstJumpOffset = $tempOffset + 2;
+                }
+                $jumped = true;
+                $tempOffset = $pointer;
+                $jumps++;
+                if ($jumps > 10) {
+                    return null; // Avoid circular pointers
+                }
+                continue;
+            }
 
-            if ($length == 0) {
+            $tempOffset++;
+            if ($length === 0) {
                 break;
             }
 
-            if ($length >= 0xC0) {
-                return null; // Compression not supported
-            }
-
-            $offset++;
-
-            if ($offset + $length > strlen($dnsQueryBinary)) {
+            if ($tempOffset + $length > strlen($binary)) {
                 return null;
             }
-
-            $label = substr($dnsQueryBinary, $offset, $length);
-            $domain .= $label . '.';
-            $offset += $length;
+            $domain .= substr($binary, $tempOffset, $length) . '.';
+            $tempOffset += $length;
         }
 
+        $offset = $jumped ? $firstJumpOffset : $tempOffset;
         return rtrim($domain, '.');
+    }
+
+    private function parseDnsQueryDomain(string $dnsQueryBinary): ?string
+    {
+        if (strlen($dnsQueryBinary) <= 12) {
+            return null;
+        }
+        $offset = 12;
+        return $this->parseDomainName($dnsQueryBinary, $offset);
     }
 
     private function getDomainAction(?string $domain): string|false|null
@@ -190,6 +212,18 @@ class DohProxy
             $responseHeader = substr($response, 0, $headerSize);
             $responseBody = substr($response, $headerSize);
 
+            // Check for CNAME targets in the response that should be intercepted
+            $action = $this->interceptResponse($responseBody);
+            if ($action === false) {
+                $this->sendDnsResponse($this->generateNxDomainResponse($requestBody));
+                curl_close($ch);
+                return;
+            } elseif (is_string($action)) {
+                $this->sendDnsResponse($this->generateARecordResponse($requestBody, $action));
+                curl_close($ch);
+                return;
+            }
+
             $forwardHeaders = ['content-type', 'content-length', 'cache-control', 'expires'];
             foreach (explode("\r\n", $responseHeader) as $headerLine) {
                 if (strpos($headerLine, ':') !== false) {
@@ -205,6 +239,54 @@ class DohProxy
         }
 
         curl_close($ch);
+    }
+
+    private function interceptResponse(string $response): string|false|null
+    {
+        if (strlen($response) < 12) {
+            return null;
+        }
+
+        $header = unpack('n6', substr($response, 0, 12));
+        $qdcount = $header[3];
+        $ancount = $header[4];
+
+        $offset = 12;
+        // Skip Question section
+        for ($i = 0; $i < $qdcount; $i++) {
+            if ($this->parseDomainName($response, $offset) === null) {
+                return null;
+            }
+            $offset += 4; // Skip QTYPE and QCLASS
+        }
+
+        // Check Answer section
+        for ($i = 0; $i < $ancount; $i++) {
+            if ($this->parseDomainName($response, $offset) === null) {
+                return null;
+            }
+            if ($offset + 10 > strlen($response)) {
+                return null;
+            }
+            $type = unpack('n', substr($response, $offset, 2))[1];
+            $rdlength = unpack('n', substr($response, $offset + 8, 2))[1];
+            $offset += 10;
+
+            if ($type === 5) { // CNAME
+                $cnameOffset = $offset;
+                $target = $this->parseDomainName($response, $cnameOffset);
+                if ($target !== null) {
+                    $action = $this->getDomainAction($target);
+                    if ($action !== null) {
+                        return $action; // Intercept if target matches domainMap
+                    }
+                }
+            }
+
+            $offset += $rdlength;
+        }
+
+        return null;
     }
 
     private function sendDnsResponse(string $body): void
