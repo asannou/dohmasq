@@ -94,10 +94,12 @@ EOT;
             ->getMock();
 
         // Configure the mock methods
-        $mockGenerator->method('fetchSourceContent')
+        $mockGenerator->expects($this->once())
+            ->method('fetchSourceContent')
             ->willReturn($this->sampleHostsContent);
 
-        $mockGenerator->method('saveOutputFile')
+        $mockGenerator->expects($this->once())
+            ->method('saveOutputFile')
             ->willReturn(true);
 
         // Run the generate method
