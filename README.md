@@ -11,6 +11,7 @@ A lightweight, `Dnsmasq`-inspired DNS-over-HTTPS (DoH) proxy written in PHP.
 *   **Local DNS Resolution:** Resolve specific domains to local IP addresses, similar to a traditional `/etc/hosts` file.
 *   **Domain Blocking:** Block unwanted domains (e.g., ads, trackers) by using a `hosts`-formatted list. Domains pointing to `0.0.0.0` are automatically rejected with an `NXDOMAIN` response.
 *   **Upstream Forwarding:** Forwards any queries for domains not in the local list to a configurable upstream DoH server (defaults to Google DNS).
+*   **CNAME Interception:** Even if a domain is not directly in the local list, if an upstream response contains a CNAME record pointing to a blocked or locally-resolved domain, `Dohmasq` will intercept and apply the local rule.
 *   **Automatic List Updates:** Automatically regenerates the domain list (e.g., daily) to keep it fresh.
 
 ## How It Works
@@ -30,15 +31,17 @@ graph LR
         E --"Checks expiry of"--> C;
         E --"If expired, triggers in background"--> B;
         E --"Reads"--> C;
-        E --> F{Domain Action?};
+        E --> F{Request Action?};
         F --"Blocked"--> G[Synthesize NXDOMAIN Response];
         F --"Local IP"--> H[Synthesize A-Record Response];
         F --"Not Listed"--> I[Forward Query];
         I --> J[Upstream DoH Server];
-        J --"Response"--> I;
+        J --"Response"--> K{Intercept CNAME?};
+        K --"Yes (Match Rule)"--> F;
+        K --"No"--> L[Relay Response];
         G --"Response"--> D;
         H --"Response"--> D;
-        I --"Relay Response"--> D;
+        L --"Response"--> D;
     end
 ```
 
@@ -56,7 +59,8 @@ The project has two main parts:
     *   Checks if the requested domain is in the `domains.php` map.
     *   **If local:** It returns a synthetic `A` record with the specified IP address.
     *   **If blocked:** It returns a synthetic `NXDOMAIN` (Non-Existent Domain) response.
-    *   **If not listed:** It forwards the raw query to the upstream DoH resolver and relays the response back to the client.
+    *   **If not listed:** It forwards the raw query to the upstream DoH resolver.
+    *   **Response Interception:** It parses the upstream response (supporting DNS compression) to check for CNAME records. If a CNAME points to a domain in your local list, it applies the corresponding rule (blocking or resolving) instead of relaying the upstream CNAME.
 
 ## Getting Started
 
