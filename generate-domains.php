@@ -9,11 +9,11 @@ use Asannou\DohMasq\DomainListGenerator;
 
 ini_set('memory_limit', '512M');
 
-$sourceUrls = [
-    'https://example.com/hosts',
-];
+$config = require __DIR__ . '/config.php';
 
-$outputFile = __DIR__ . '/domains.php';
+$sourceUrls = $config['source_urls'];
+
+$outputFile = $config['domains_file'];
 $outputStream = fopen("$outputFile.new", 'c');
 
 if (!flock($outputStream, LOCK_EX | LOCK_NB)) {

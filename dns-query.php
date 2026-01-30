@@ -6,13 +6,15 @@ require_once __DIR__ . '/vendor/autoload.php';
 
 use Asannou\DohMasq\DohProxy;
 
-$upstreamUrl = 'https://dns.google/dns-query';
-$domainsFile = getenv('DOH_DOMAINS_FILE') ?: __DIR__ . '/domains.php';
+$config = require_once(__DIR__ . '/config.php');
+
+$upstreamUrl = $config['upstream_url'];
+$domainsFile = $config['domains_file'];
 $domainMap = require_once($domainsFile);
 
 $token = $_GET['token'] ?? null;
 
-$allowedTokensFile = getenv('DOH_TOKENS_FILE') ?: __DIR__ . '/tokens.php';
+$allowedTokensFile = $config['tokens_file'];
 $allowedTokens = require_once($allowedTokensFile);
 
 if (!is_array($allowedTokens)) {
@@ -30,18 +32,17 @@ if ($token === null || !in_array($token, $allowedTokens, true)) {
 $proxy = new DohProxy($upstreamUrl, $domainMap, $token);
 $proxy->run();
 
-if (!getenv('DOH_DOMAINS_FILE') && isExpired($domainsFile)) {
+if (!getenv('DOH_DOMAINS_FILE') && isExpired($domainsFile, $config['expire_seconds'])) {
     $generateDomains = __DIR__ . '/generate-domains.php';
     $command = "$generateDomains &";
     exec($command);
 }
 
-function isExpired(string $domainsFile): bool
+function isExpired(string $domainsFile, int $expireSeconds): bool
 {
-    $EXPIRE_SECONDS = 60 * 60 * 24;
     $modifiedTime = filemtime($domainsFile);
     if ($modifiedTime) {
-        return ($modifiedTime + $EXPIRE_SECONDS) < time();
+        return ($modifiedTime + $expireSeconds) < time();
     } else {
         return true;
     }
