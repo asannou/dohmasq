@@ -89,8 +89,8 @@ graph LR
     ドメインリスト (`domains.php`) は2つの方法で生成・更新できます。
 
     *   **手動生成:**
-        *   テキストエディタで `generate-domains.php` を開きます。
-        *   使用したいすべての `hosts` ファイルの URL を含むように `$sourceUrls` 配列を修正します。
+        *   テキストエディタで `config.php` を開きます。
+        *   使用したいすべての `hosts` ファイルの URL を含むように `source_urls` 配列を修正します。
         *   ターミナルからスクリプトを実行します:
             ```bash
             php generate-domains.php
@@ -99,7 +99,7 @@ graph LR
 
     *   **自動再生成:**
         `domains.php` ファイルが 24 時間以上古い場合、`dns-query.php` がバックグラウンドで自動的に `generate-domains.php` をトリガーします。これにより、ブロックリストが最新の状態に保たれます。
-        *   **有効期限:** `dns-query.php` の `$EXPIRE_SECONDS` 定数を変更することで、有効期限を調整できます。
+        *   **有効期限:** `config.php` の `expire_seconds` 値を変更することで、有効期限を調整できます。
 
 2.  **許可されたトークンの設定:**
     *   テキストエディタで `tokens.php` を開きます。

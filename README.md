@@ -89,8 +89,8 @@ The project has two main parts:
     The domain list (`domains.php`) can be generated and updated in two ways:
 
     *   **Manual Generation:**
-        *   Open `generate-domains.php` in a text editor.
-        *   Modify the `$sourceUrls` array to include all `hosts` file URLs you want to use.
+        *   Open `config.php` in a text editor.
+        *   Modify the `source_urls` array to include all `hosts` file URLs you want to use.
         *   Run the script from your terminal:
             ```bash
             php generate-domains.php
@@ -99,7 +99,7 @@ The project has two main parts:
 
     *   **Automatic Regeneration:**
         `dns-query.php` will automatically trigger `generate-domains.php` in the background if the `domains.php` file is older than 24 hours. This ensures your block list stays fresh.
-        *   **Expiration Interval:** You can adjust the expiration by modifying the `$EXPIRE_SECONDS` constant in `dns-query.php`.
+        *   **Expiration Interval:** You can adjust the expiration by modifying the `expire_seconds` value in `config.php`.
 
 2.  **Configure Allowed Tokens:**
     *   Open `tokens.php` in a text editor.
