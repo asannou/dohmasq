@@ -5,13 +5,13 @@ use PHPUnit\Framework\TestCase;
 class DnsQueryEndToEndTest extends TestCase
 {
     private static $pid;
-    private static $port = 8000;
+    private static $port;
     private static $token = 'test-token';
 
     public static function setUpBeforeClass(): void
     {
         // Find a free port
-        for (self::$port = 8000; self::$port < 9000; self::$port++) {
+        for (self::$port = 8000; self::$port < 8100; self::$port++) {
             $socket = @fsockopen('localhost', self::$port, $errno, $errstr, 0.1);
             if (!$socket) {
                 break;
@@ -21,9 +21,7 @@ class DnsQueryEndToEndTest extends TestCase
 
         // Use the router script for the built-in server
         $command = sprintf(
-            'DOH_DOMAINS_FILE=%s DOH_TOKENS_FILE=%s php -S localhost:%d %s > /dev/null 2>&1 & echo $!',
-            escapeshellarg(__DIR__ . '/domains-test.php'),
-            escapeshellarg(__DIR__ . '/tokens-test.php'),
+            'php -S localhost:%d %s > /dev/null 2>&1 & echo $!',
             self::$port,
             escapeshellarg(__DIR__ . '/router.php') // Use the router script
         );

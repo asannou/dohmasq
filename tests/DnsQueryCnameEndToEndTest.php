@@ -19,17 +19,14 @@ class DnsQueryCnameEndToEndTest extends TestCase
             fclose($socket);
         }
 
-        // Start server with domains-cname-test.php
         $command = sprintf(
-            'DOH_DOMAINS_FILE=%s DOH_TOKENS_FILE=%s php -S localhost:%d %s > /dev/null 2>&1 & echo $!',
-            escapeshellarg(__DIR__ . '/domains-cname-test.php'),
-            escapeshellarg(__DIR__ . '/tokens-test.php'),
+            'php -S localhost:%d %s > /dev/null 2>&1 & echo $!',
             self::$port,
             escapeshellarg(__DIR__ . '/router.php')
         );
 
         self::$pid = exec($command);
-        usleep(200000); // Wait for server
+        usleep(100000); // Wait for server to start
     }
 
     public static function tearDownAfterClass(): void
@@ -41,9 +38,6 @@ class DnsQueryCnameEndToEndTest extends TestCase
 
     public function testBlockedCnameResponse()
     {
-        // Config: github.com is BLOCKED
-        file_put_contents(__DIR__ . '/domains-cname-test.php', "<?php return ['github.com' => false];");
-
         // Query for www.github.com
         $query = "\x12\x34\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00\x03www\x06github\x03com\x00\x00\x01\x00\x01";
 
@@ -75,11 +69,8 @@ class DnsQueryCnameEndToEndTest extends TestCase
 
     public function testResolvedCnameResponse()
     {
-        // Config: github.com is mapped to 127.0.0.1
-        file_put_contents(__DIR__ . '/domains-cname-test.php', "<?php return ['github.com' => '127.0.0.1'];");
-
-        // Query for www.github.com
-        $query = "\x56\x78\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00\x03www\x06github\x03com\x00\x00\x01\x00\x01";
+        // Query for www.wikipedia.org
+        $query = "\x56\x78\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00\x03www\x09wikipedia\x03org\x00\x00\x01\x00\x01";
 
         $url = 'http://localhost:' . self::$port . '/' . self::$token . '/dns-query.php';
 

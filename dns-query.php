@@ -32,7 +32,7 @@ if ($token === null || !in_array($token, $allowedTokens, true)) {
 $proxy = new DohProxy($upstreamUrl, $domainMap, $token);
 $proxy->run();
 
-if (!getenv('DOH_DOMAINS_FILE') && isExpired($domainsFile, $config['expire_seconds'])) {
+if (getenv('APP_ENV') !== 'testing' && isExpired($domainsFile, $config['expire_seconds'])) {
     $generateDomains = __DIR__ . '/generate-domains.php';
     $command = "$generateDomains &";
     exec($command);
