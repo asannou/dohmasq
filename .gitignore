@@ -1,0 +1,5 @@
+/vendor/
+/domains.php
+/domains.php.new
+/tokens.php
+/.phpunit.result.cache
