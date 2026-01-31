@@ -10,7 +10,7 @@ $config = require_once(__DIR__ . '/config.php');
 
 $upstreamUrl = $config['upstream_url'];
 $domainsFile = $config['domains_file'];
-$domainMap = require_once($domainsFile);
+$domainMap = is_file($domainsFile) ? require_once $domainsFile : [];
 
 $token = $_GET['token'] ?? null;
 
@@ -40,8 +40,8 @@ if (!getenv('DOH_DOMAINS_FILE') && isExpired($domainsFile, $config['expire_secon
 
 function isExpired(string $domainsFile, int $expireSeconds): bool
 {
-    $modifiedTime = filemtime($domainsFile);
-    if ($modifiedTime) {
+    $modifiedTime = is_file($domainsFile) ? filemtime($domainsFile) : false;
+    if ($modifiedTime !== false) {
         return ($modifiedTime + $expireSeconds) < time();
     } else {
         return true;
