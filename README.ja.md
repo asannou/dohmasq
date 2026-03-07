@@ -66,7 +66,7 @@ graph LR
 
 ### 前提条件
 
-*   PHP 8.3 以降を推奨
+*   PHP 8.4 以降を推奨
 *   依存関係管理のための [Composer](https://getcomposer.org/)
 *   ウェブサーバー (Apache または Nginx など)
 

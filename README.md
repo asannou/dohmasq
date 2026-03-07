@@ -66,7 +66,7 @@ The project has two main parts:
 
 ### Prerequisites
 
-*   PHP 8.3 or later recommended
+*   PHP 8.4 or later recommended
 *   [Composer](https://getcomposer.org/) for dependency management
 *   A web server (like Apache or Nginx)
 
