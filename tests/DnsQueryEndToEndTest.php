@@ -71,9 +71,14 @@ class DnsQueryEndToEndTest extends TestCase
         $this->assertStringContainsString('200 OK', $http_response_header[0]);
 
         $proxy = new \Asannou\DohMasq\DohProxy('', [], self::$token);
+
+        $parseMethod = new \ReflectionMethod('Asannou\DohMasq\DohProxy', 'parseDnsQuery');
+        $parseMethod->setAccessible(true);
+        $queryData = $parseMethod->invoke($proxy, $query);
+
         $method = new \ReflectionMethod('Asannou\DohMasq\DohProxy', 'generateNxDomainResponse');
         $method->setAccessible(true);
-        $expectedResponse = $method->invoke($proxy, $query);
+        $expectedResponse = $method->invoke($proxy, $query, $queryData['questionLength']);
 
         $this->assertEquals($expectedResponse, $response);
     }
@@ -97,11 +102,55 @@ class DnsQueryEndToEndTest extends TestCase
         $this->assertStringContainsString('200 OK', $http_response_header[0]);
 
         $proxy = new \Asannou\DohMasq\DohProxy('', [], self::$token);
+
+        $parseMethod = new \ReflectionMethod('Asannou\DohMasq\DohProxy', 'parseDnsQuery');
+        $parseMethod->setAccessible(true);
+        $queryData = $parseMethod->invoke($proxy, $query);
+
         $method = new \ReflectionMethod('Asannou\DohMasq\DohProxy', 'generateARecordResponse');
         $method->setAccessible(true);
-        $expectedResponse = $method->invoke($proxy, $query, '127.0.0.1');
+        $expectedResponse = $method->invoke($proxy, $query, '127.0.0.1', $queryData['questionLength']);
 
         $this->assertEquals($expectedResponse, $response);
+    }
+
+    public function testAaaaQueryForResolvedDomain()
+    {
+        // AAAA query (Type 28) for 'resolved.com'
+        $query = "\x56\x78\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00\x08resolved\x03com\x00\x00\x1c\x00\x01";
+        $options = [
+            'http' => [
+                'method' => 'POST',
+                'header' => "Content-Type: application/dns-message\r\n",
+                'content' => $query,
+                'ignore_errors' => true,
+            ],
+        ];
+        $context = stream_context_create($options);
+        $url = 'http://localhost:' . self::$port . '/' . self::$token . '/dns-query.php';
+
+        $response = file_get_contents($url, false, $context);
+
+        $this->assertStringContainsString('200 OK', $http_response_header[0]);
+
+        $proxy = new \Asannou\DohMasq\DohProxy('', [], self::$token);
+
+        $parseMethod = new \ReflectionMethod('Asannou\DohMasq\DohProxy', 'parseDnsQuery');
+        $parseMethod->setAccessible(true);
+        $queryData = $parseMethod->invoke($proxy, $query);
+
+        $method = new \ReflectionMethod('Asannou\DohMasq\DohProxy', 'generateEmptyResponse');
+        $method->setAccessible(true);
+        $expectedResponse = $method->invoke($proxy, $query, $queryData['questionLength']);
+
+        $this->assertEquals($expectedResponse, $response);
+
+        // Verify it's NOERROR with 0 answers
+        $flags = unpack('n', substr($response, 2, 2))[1];
+        $rcode = $flags & 0x000F;
+        $ancount = unpack('n', substr($response, 6, 2))[1];
+        $this->assertEquals(0, $rcode);
+        $this->assertEquals(0, $ancount);
     }
 
     public function testUnblockedDomainGet()
