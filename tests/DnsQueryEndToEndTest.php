@@ -33,7 +33,7 @@ class DnsQueryEndToEndTest extends TestCase
     public static function tearDownAfterClass(): void
     {
         if (self::$pid) {
-            exec('kill ' . self::$pid);
+            exec('kill ' . self::$pid . ' 2>/dev/null || true');
         }
     }
 
@@ -78,7 +78,7 @@ class DnsQueryEndToEndTest extends TestCase
 
         $method = new \ReflectionMethod('Asannou\DohMasq\DohProxy', 'generateNxDomainResponse');
         $method->setAccessible(true);
-        $expectedResponse = $method->invoke($proxy, $query, $queryData['questionLength']);
+        $expectedResponse = $method->invoke($proxy, $query, $queryData);
 
         $this->assertEquals($expectedResponse, $response);
     }
@@ -109,7 +109,7 @@ class DnsQueryEndToEndTest extends TestCase
 
         $method = new \ReflectionMethod('Asannou\DohMasq\DohProxy', 'generateARecordResponse');
         $method->setAccessible(true);
-        $expectedResponse = $method->invoke($proxy, $query, '127.0.0.1', $queryData['questionLength']);
+        $expectedResponse = $method->invoke($proxy, $query, '127.0.0.1', $queryData);
 
         $this->assertEquals($expectedResponse, $response);
     }
@@ -141,7 +141,7 @@ class DnsQueryEndToEndTest extends TestCase
 
         $method = new \ReflectionMethod('Asannou\DohMasq\DohProxy', 'generateEmptyResponse');
         $method->setAccessible(true);
-        $expectedResponse = $method->invoke($proxy, $query, $queryData['questionLength']);
+        $expectedResponse = $method->invoke($proxy, $query, $queryData);
 
         $this->assertEquals($expectedResponse, $response);
 
@@ -151,6 +151,38 @@ class DnsQueryEndToEndTest extends TestCase
         $ancount = unpack('n', substr($response, 6, 2))[1];
         $this->assertEquals(0, $rcode);
         $this->assertEquals(0, $ancount);
+    }
+
+    public function testQueryWithEdnsPreservation()
+    {
+        // Query with EDNS0 (ARCOUNT=1)
+        $header = "\xab\xcd\x01\x00\x00\x01\x00\x00\x00\x00\x00\x01";
+        $question = "\x08resolved\x03com\x00\x00\x01\x00\x01";
+        $edns = "\x00\x00\x29\x02\x00\x00\x00\x00\x00\x00\x00"; // OPT RR
+        $query = $header . $question . $edns;
+
+        $options = [
+            'http' => [
+                'method' => 'POST',
+                'header' => "Content-Type: application/dns-message\r\n",
+                'content' => $query,
+                'ignore_errors' => true,
+            ],
+        ];
+        $context = stream_context_create($options);
+        $url = 'http://localhost:' . self::$port . '/' . self::$token . '/dns-query.php';
+
+        $response = file_get_contents($url, false, $context);
+
+        $this->assertStringContainsString('200 OK', $http_response_header[0]);
+
+        // Verify ARCOUNT is 1 and EDNS is preserved
+        $counts = unpack('n4', substr($response, 4, 8));
+        $this->assertEquals(1, $counts[4], 'ARCOUNT should be 1');
+        $this->assertStringContainsString($edns, $response, 'EDNS0 should be preserved in response');
+        
+        // Full length check: 12 (Header) + 18 (Question) + 16 (Answer) + 11 (EDNS) = 57
+        $this->assertEquals(57, strlen($response));
     }
 
     public function testUnblockedDomainGet()

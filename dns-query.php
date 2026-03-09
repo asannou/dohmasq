@@ -34,9 +34,12 @@ $proxy->run();
 
 if (getenv('APP_ENV') !== 'testing' && isExpired($domainsFile, $config['expire_seconds'])) {
     $generateDomains = __DIR__ . '/generate-domains.php';
-    $command = "$generateDomains &";
+    // Redirect output to avoid corrupting the current response
+    $command = "php " . escapeshellarg($generateDomains) . " > /dev/null 2>&1 &";
     exec($command);
 }
+
+exit;
 
 function isExpired(string $domainsFile, int $expireSeconds): bool
 {
@@ -47,4 +50,3 @@ function isExpired(string $domainsFile, int $expireSeconds): bool
         return true;
     }
 }
-

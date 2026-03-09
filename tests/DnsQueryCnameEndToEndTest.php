@@ -32,7 +32,7 @@ class DnsQueryCnameEndToEndTest extends TestCase
     public static function tearDownAfterClass(): void
     {
         if (self::$pid) {
-            exec('kill ' . self::$pid);
+            exec('kill ' . self::$pid . ' 2>/dev/null || true');
         }
     }
 
