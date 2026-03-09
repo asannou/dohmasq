@@ -12,6 +12,8 @@ A lightweight, `Dnsmasq`-inspired DNS-over-HTTPS (DoH) proxy written in PHP.
 *   **Domain Blocking:** Block unwanted domains (e.g., ads, trackers) by using a `hosts`-formatted list. Domains pointing to `0.0.0.0` are automatically rejected with an `NXDOMAIN` response.
 *   **Upstream Forwarding:** Forwards any queries for domains not in the local list to a configurable upstream DoH server (defaults to Google DNS).
 *   **CNAME Interception:** Even if a domain is not directly in the local list, if an upstream response contains a CNAME record pointing to a blocked or locally-resolved domain, `Dohmasq` will intercept and apply the local rule.
+*   **EDNS0 Support:** Preserves `OPT` records and other additional sections from the client query, ensuring compatibility with modern DNS resolvers and strict clients like `curl` and Firefox.
+*   **Structural DNS Integrity:** Bit-for-bit replication of the question section and proper handling of non-A queries (returns `NOERROR` with 0 answers) for resolved domains.
 *   **Automatic List Updates:** Automatically regenerates the domain list (e.g., daily) to keep it fresh.
 
 ## How It Works
