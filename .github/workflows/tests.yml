@@ -24,5 +24,8 @@ jobs:
     - name: Install Composer dependencies
       run: composer install --prefer-dist --no-progress
 
+    - name: Run linting check
+      run: composer lint
+
     - name: Run PHPUnit tests
       run: vendor/bin/phpunit
