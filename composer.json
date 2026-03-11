@@ -7,7 +7,12 @@
         }
     ],
     "require-dev": {
-        "phpunit/phpunit": "^13.0"
+        "phpunit/phpunit": "^13.0",
+        "friendsofphp/php-cs-fixer": "^3.94"
+    },
+    "scripts": {
+        "lint": "php-cs-fixer fix --dry-run --diff",
+        "fix": "php-cs-fixer fix"
     },
     "autoload": {
         "psr-4": {

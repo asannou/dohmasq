@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Asannou\DohMasq;
 
 class DohProxy
@@ -21,12 +23,14 @@ class DohProxy
 
         if ($requestBody === null) {
             $this->sendHttpResponse(400, 'Error: Invalid DoH request.');
+
             return;
         }
 
         $query = $this->parseDnsQuery($requestBody);
         if ($query === null) {
             $this->sendHttpResponse(400, 'Error: Malformed DNS query.');
+
             return;
         }
 
@@ -37,6 +41,7 @@ class DohProxy
             // Blocked domain
             $nxResponse = $this->generateNxDomainResponse($requestBody, $query);
             $this->sendDnsResponse($nxResponse);
+
             return;
         }
 
@@ -50,6 +55,7 @@ class DohProxy
                 $emptyResponse = $this->generateEmptyResponse($requestBody, $query);
                 $this->sendDnsResponse($emptyResponse);
             }
+
             return;
         }
 
@@ -70,6 +76,7 @@ class DohProxy
             if ($padding > 0) {
                 $base64 .= str_repeat('=', 4 - $padding);
             }
+
             return base64_decode($base64);
         }
 
@@ -95,7 +102,7 @@ class DohProxy
                     return null;
                 }
                 $pointer = unpack('n', substr($binary, $tempOffset, 2))[1] & 0x3FFF;
-                if (!$jumped) {
+                if (! $jumped) {
                     $firstJumpOffset = $tempOffset + 2;
                 }
                 $jumped = true;
@@ -104,6 +111,7 @@ class DohProxy
                 if ($jumps > 10) {
                     return null; // Avoid circular pointers
                 }
+
                 continue;
             }
 
@@ -120,6 +128,7 @@ class DohProxy
         }
 
         $offset = $jumped ? $firstJumpOffset : $tempOffset;
+
         return rtrim($domain, '.');
     }
 
@@ -140,7 +149,7 @@ class DohProxy
             'domain' => $domain,
             'type' => $type,
             'class' => $class,
-            'questionLength' => $offset + 4 - 12
+            'questionLength' => $offset + 4 - 12,
         ];
     }
 
@@ -155,6 +164,7 @@ class DohProxy
             $encoded .= chr(strlen($part)) . $part;
         }
         $encoded .= "\x00";
+
         return $encoded;
     }
 
@@ -165,6 +175,7 @@ class DohProxy
         }
 
         $domainLower = strtolower($domain);
+
         return $this->domainMap[$domainLower] ?? null;
     }
 
@@ -184,7 +195,7 @@ class DohProxy
         $response .= "\x00\x00"; // nscount
         $response .= $arcount;
         $response .= substr($dnsQueryBinary, 12, $query['questionLength']); // Original question
-        
+
         // Answer Section
         $response .= "\xc0\x0c"; // Pointer to domain in Question
         $response .= "\x00\x01"; // Type A
@@ -192,7 +203,7 @@ class DohProxy
         $response .= pack('N', 300); // TTL 300
         $response .= "\x00\x04"; // RDLENGTH 4
         $response .= inet_pton($ipAddress);
-        
+
         // Additional Section from query
         $response .= substr($dnsQueryBinary, 12 + $query['questionLength']);
 
@@ -216,7 +227,7 @@ class DohProxy
         $response .= "\x00\x00"; // nscount
         $response .= $arcount;
         $response .= substr($dnsQueryBinary, 12, $query['questionLength']); // Original question
-        
+
         // Additional Section from query
         $response .= substr($dnsQueryBinary, 12 + $query['questionLength']);
 
@@ -241,7 +252,7 @@ class DohProxy
         $response .= "\x00\x00"; // nscount
         $response .= $arcount;
         $response .= substr($dnsQueryBinary, 12, $query['questionLength']); // Original question
-        
+
         // Additional Section from query
         $response .= substr($dnsQueryBinary, 12 + $query['questionLength']);
 
@@ -289,9 +300,11 @@ class DohProxy
             $action = $this->interceptResponse($responseBody);
             if ($action === false) {
                 $this->sendDnsResponse($this->generateNxDomainResponse($requestBody, $query));
+
                 return;
             } elseif (is_string($action)) {
                 $this->sendDnsResponse($this->generateARecordResponse($requestBody, $action, $query));
+
                 return;
             }
 

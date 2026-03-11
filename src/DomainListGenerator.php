@@ -33,6 +33,7 @@ class DomainListGenerator
                 if ($verbose) {
                     echo "Warning: Failed to download hosts file from $url. Skipping.\n";
                 }
+
                 continue;
             }
             $bytes = strlen($hostsContent);
@@ -49,6 +50,7 @@ class DomainListGenerator
             if ($verbose) {
                 echo "Error: No domains were parsed from any source. Aborting.\n";
             }
+
             return false;
         }
 
@@ -69,18 +71,21 @@ class DomainListGenerator
             if ($verbose) {
                 echo "Error: Failed to write to $outputFile. Check permissions.\n";
             }
+
             return false;
         }
 
         if ($verbose) {
             echo "Successfully created $outputFile.\n";
         }
+
         return true;
     }
 
     public function fetchSourceContent(string $url): ?string
     {
         $content = @file_get_contents($url);
+
         return $content === false ? null : $content;
     }
 
@@ -106,7 +111,7 @@ class DomainListGenerator
             }
 
             $ip = $parts[0];
-            if (!filter_var($ip, FILTER_VALIDATE_IP)) {
+            if (! filter_var($ip, FILTER_VALIDATE_IP)) {
                 continue;
             }
 
@@ -123,6 +128,7 @@ class DomainListGenerator
                 }
             }
         }
+
         return $domain_map;
     }
 

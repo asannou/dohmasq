@@ -68,4 +68,3 @@ addKeyValuePair($doc, $rootDict, 'PayloadUUID', 'string', $payload_uuid);
 addKeyValuePair($doc, $rootDict, 'PayloadVersion', 'integer', 1);
 
 echo $doc->saveXML();
-

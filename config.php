@@ -2,7 +2,8 @@
 
 declare(strict_types=1);
 
-function isTesting() {
+function isTesting()
+{
     return getenv('APP_ENV') === 'testing';
 }
 

@@ -17,13 +17,13 @@ $token = $_GET['token'] ?? null;
 $allowedTokensFile = $config['tokens_file'];
 $allowedTokens = require_once($allowedTokensFile);
 
-if (!is_array($allowedTokens)) {
+if (! is_array($allowedTokens)) {
     http_response_code(500);
     echo 'Error: Invalid tokens file format.';
     exit;
 }
 
-if ($token === null || !in_array($token, $allowedTokens, true)) {
+if ($token === null || ! in_array($token, $allowedTokens, true)) {
     http_response_code(403);
     echo 'Forbidden: Invalid or missing token.';
     exit;

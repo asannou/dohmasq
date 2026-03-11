@@ -16,16 +16,15 @@ $sourceUrls = $config['source_urls'];
 $outputFile = $config['domains_file'];
 $outputStream = fopen("$outputFile.new", 'c');
 
-if (!flock($outputStream, LOCK_EX | LOCK_NB)) {
+if (! flock($outputStream, LOCK_EX | LOCK_NB)) {
     echo 'Unable to obtain lock';
     exit(-1);
 }
 
 $generator = new DomainListGenerator($sourceUrls, $outputStream);
-if (!$generator->generate(true)) {
+if (! $generator->generate(true)) {
     exit(1);
 }
 
 rename("$outputFile.new", $outputFile);
 fclose($outputStream);
-
